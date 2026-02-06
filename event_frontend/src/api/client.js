@@ -1,8 +1,15 @@
 /**
  * Retro Event Planner Pro - API Client
  *
- * Note: The backend OpenAPI spec available in this repo is currently minimal.
- * This client implements the expected endpoints (auth, events CRUD, RSVP).
+ * This client matches the FastAPI backend implemented in event_backend:
+ * - POST /auth/register  { email, password, full_name }
+ * - POST /auth/login     { email, password }
+ * - GET  /events
+ * - POST /events         (Bearer)
+ * - PUT  /events/{id}    (Bearer)
+ * - DELETE /events/{id}  (Bearer)
+ * - PUT  /events/{event_id}/rsvps/me     { status: going|interested|declined } (Bearer)
+ * - DELETE /events/{event_id}/rsvps/me   (Bearer)
  *
  * Env var:
  * - REACT_APP_API_BASE_URL: base URL for backend, e.g. "http://localhost:3001"
@@ -11,7 +18,12 @@
 const TOKEN_KEY = "epp_token";
 
 function getApiBaseUrl() {
-  return process.env.REACT_APP_API_BASE_URL || "http://localhost:3001";
+  // Default to the backend preview URL if the env var isn't set.
+  // The orchestrator should set REACT_APP_API_BASE_URL in the real .env for this container.
+  return (
+    process.env.REACT_APP_API_BASE_URL ||
+    "https://vscode-internal-22662-qa.qa01.cloud.kavia.ai:3001"
+  );
 }
 
 function getToken() {
@@ -85,27 +97,23 @@ export function authStore() {
 
 // PUBLIC_INTERFACE
 export async function apiLogin({ email, password }) {
-  /** Log in and return {token, user?}. */
+  /** Log in and return TokenResponse: { access_token, token_type, user }. */
   return request("/auth/login", { method: "POST", body: { email, password } });
 }
 
 // PUBLIC_INTERFACE
-export async function apiRegister({ email, password, name }) {
-  /** Register and return {token, user?}. */
-  return request("/auth/register", { method: "POST", body: { email, password, name } });
+export async function apiRegister({ email, password, full_name }) {
+  /** Register and return TokenResponse: { access_token, token_type, user }. */
+  return request("/auth/register", {
+    method: "POST",
+    body: { email, password, full_name }
+  });
 }
 
 // PUBLIC_INTERFACE
-export async function apiMe(token) {
-  /** Fetch current user profile. */
-  return request("/auth/me", { method: "GET", token });
-}
-
-// PUBLIC_INTERFACE
-export async function apiListEvents({ q } = {}) {
-  /** List events (optionally filtered). */
-  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
-  return request(`/events${qs}`, { method: "GET" });
+export async function apiListEvents() {
+  /** List events. */
+  return request("/events", { method: "GET" });
 }
 
 // PUBLIC_INTERFACE
@@ -137,21 +145,20 @@ export async function apiDeleteEvent(token, eventId) {
 }
 
 // PUBLIC_INTERFACE
-export async function apiRsvpYes(token, eventId) {
-  /** RSVP yes for an event. Requires auth. */
-  return request(`/events/${encodeURIComponent(eventId)}/rsvp`, {
-    method: "POST",
+export async function apiSetMyRsvp(token, eventId, status) {
+  /** Set RSVP status for current user. Requires auth. */
+  return request(`/events/${encodeURIComponent(eventId)}/rsvps/me`, {
+    method: "PUT",
     token,
-    body: { status: "yes" }
+    body: { status }
   });
 }
 
 // PUBLIC_INTERFACE
-export async function apiRsvpNo(token, eventId) {
-  /** RSVP no for an event. Requires auth. */
-  return request(`/events/${encodeURIComponent(eventId)}/rsvp`, {
-    method: "POST",
-    token,
-    body: { status: "no" }
+export async function apiDeleteMyRsvp(token, eventId) {
+  /** Remove RSVP for current user. Requires auth. */
+  return request(`/events/${encodeURIComponent(eventId)}/rsvps/me`, {
+    method: "DELETE",
+    token
   });
 }
