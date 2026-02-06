@@ -1,48 +1,82 @@
-import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import "./App.css";
 
-// PUBLIC_INTERFACE
+import { Navbar } from "./components/Navbar";
+import { RequireAuth } from "./components/RequireAuth";
+
+import { useAuth } from "./hooks/useAuth";
+
+import { EventsListPage } from "./pages/EventsListPage";
+import { EventDetailsPage } from "./pages/EventDetailsPage";
+import { EventFormPage } from "./pages/EventFormPage";
+import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/RegisterPage";
+
+/**
+ * PUBLIC_INTERFACE
+ */
 function App() {
-  const [theme, setTheme] = useState('light');
-
-  // Effect to apply theme to document element
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  // PUBLIC_INTERFACE
-  const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
-  };
+  /** App shell and routing for Event Planner Pro. */
+  const auth = useAuth();
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <button 
-          className="theme-toggle" 
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-        </button>
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <p>
-          Current theme: <strong>{theme}</strong>
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <div className="appShell">
+        <Navbar user={auth.user} onLogout={auth.logout} />
+
+        <main className="main">
+          <Routes>
+            <Route path="/" element={<EventsListPage />} />
+            <Route path="/events/:eventId" element={<EventDetailsPage auth={auth} />} />
+
+            <Route
+              path="/events/new"
+              element={
+                <RequireAuth user={auth.user}>
+                  <EventFormPage auth={auth} mode="create" />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/events/:eventId/edit"
+              element={
+                <RequireAuth user={auth.user}>
+                  <EventFormPage auth={auth} mode="edit" />
+                </RequireAuth>
+              }
+            />
+
+            <Route path="/login" element={<LoginPage auth={auth} />} />
+            <Route path="/register" element={<RegisterPage auth={auth} />} />
+
+            <Route
+              path="*"
+              element={
+                <div className="container">
+                  <h1 className="pageTitle">404</h1>
+                  <p className="pageSubtitle">You wandered off the map.</p>
+                  <a className="btn btnPrimary" href="/">
+                    Back to events
+                  </a>
+                </div>
+              }
+            />
+          </Routes>
+        </main>
+
+        <footer className="footer">
+          <div className="container">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <span>Event Planner Pro • Retro Theme UI</span>
+              <span>
+                Backend: <code>REACT_APP_API_BASE_URL</code>
+              </span>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </BrowserRouter>
   );
 }
 
